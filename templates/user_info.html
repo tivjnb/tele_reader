@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Page</title>
+</head>
+<body>
+    <h1>Welcome, {{ user_name }}!</h1>
+    <h2>Status: {{ is_active }}</h2>
+    <p>Here you can perform actions:</p>
+    <a href="/users/{{ user_name }}?action=ON">ON</a>
+    <a href="/users/{{ user_name }}?action=OFF">OFF</a>
+</body>
+</html>
