@@ -4,14 +4,33 @@ from quart import Quart, render_template, request, redirect, url_for
 import asyncio
 
 app = Quart(__name__)
-is_started = False
 
 api_id = 25517210
 api_hash = "1c349f3c3a54c464dabef9f2738e837a"
 
-#client = TelegramClient('session_one', api_id, api_hash)
-
 target_message = "It's time to STOP!"
+
+
+class MyClient:
+    clients_list = dict()
+
+    def __init__(self, phone):
+        self.client = TelegramClient(phone, api_id, api_hash)
+        MyClient.clients_list[phone] = self
+
+    async def start(self):
+        async with self.client:
+            @self.client.on(NewMessage)
+            async def handle_new_message(event):
+                with open('log.txt', 'a') as f:
+                    f.write(str(event.message.message) + "   " + str(event.message.date) + '  ' + str(event.message) + '\n')
+                    print('1')
+            await self.client.run_until_disconnected()
+
+    async def ender(self):
+        await self.client.disconnect()
+
+
 
 '''
 @client.on(NewMessage)
@@ -25,13 +44,22 @@ async def handle_new_message(event):
         await client.disconnect()  # Отключение клиента
         is_started = False
 '''
-'''
-async def starter():
-    async with client:
-        await client.run_until_disconnected()
-'''
-'''
 
+
+async def reader(phone):
+    read_client = TelegramClient(phone, api_id, api_hash)
+    async with read_client:
+        @read_client.on(NewMessage)
+        async def handle_new_message(event):
+            with open('log.txt', 'a') as f:
+                f.write(f"{event.message.message} | {event.message.date}\n")
+                print('1')
+            if target_message in event.message.message:
+                print("Целевое сообщение получено. Завершение скрипта.")
+                await read_client.disconnect()
+        await read_client.run_until_disconnected()
+
+'''
 # Запуск клиента
 @app.route('/users/<user_name>')
 async def user_page(user_name):
@@ -62,7 +90,7 @@ async def get_phone():
         s_client = TelegramClient(phone, api_id, api_hash)
         await s_client.connect()
         if await s_client.is_user_authorized():
-            target_url = url_for('main_page', phone=str(phone))
+            target_url = url_for('main_page', phone=str(phone), action="ON")
             await s_client.disconnect()
             return redirect(target_url)
         else:
@@ -96,16 +124,23 @@ async def code():
         await client_code_func.connect()
         await client_code_func.sign_in(phone=phone, phone_code_hash=code_hash, code=pass_code)
 
-        target_url = url_for('main_page', phone=phone)
+        target_url = url_for('main_page', phone=phone, action="ON")
         await client_code_func.disconnect()
         return redirect(target_url)
-
-    return f"phone: {phone}"
 
 
 @app.route('/main')
 async def main_page():
     phone = request.args.get('phone')
+    action = request.args.get('action')
+    if action == "ON":
+        new_client = MyClient(phone)
+        asyncio.create_task(new_client.start())
+        return "listening was started"
+    if action == "OFF":
+        client = MyClient.clients_list[phone]
+        await client.ender()
+        return "stop"
     return f"phone: {phone}"
 
 
