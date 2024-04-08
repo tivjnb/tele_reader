@@ -95,8 +95,7 @@ async def main_page():
     else:
         client = MyClient(phone)
         print('NEW')
-    '''chats = await client.get_chat_list()'''
-    chats=['123', '321']
+    chats = await client.get_chat_list()
     if action == "ON":
         asyncio.create_task(client.start())
         return await render_template('main.html', phone=phone, status='pass', message='Reader was started', chats=chats)
@@ -105,11 +104,6 @@ async def main_page():
         return await render_template('main.html', phone=phone, status='pass', message='Reader was ended', chats=chats)
     return await render_template('main.html', phone=phone, status='pass', message='just look at chats', chats=chats)
 
-
-@app.route('/stop')
-async def stop():
-
-    return "task stoped"
 
 if __name__ == "__main__":
     app.run(debug=False)
