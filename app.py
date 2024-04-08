@@ -8,8 +8,6 @@ app = Quart(__name__)
 api_id = 25517210
 api_hash = "1c349f3c3a54c464dabef9f2738e837a"
 
-target_message = "It's time to STOP!"
-
 
 class MyClient:
     clients_list = dict()
@@ -23,66 +21,19 @@ class MyClient:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
                 with open('log.txt', 'a') as f:
-                    f.write(str(event.message.message) + "   " + str(event.message.date) + '  ' + str(event.message) + '\n')
-                    print('1')
+                    f.write(f"{event.message.message} | {event.message.date}\n")
             await self.client.run_until_disconnected()
+            print('END')
 
-    async def end(self):
+    async def ender(self):
         await self.client.disconnect()
 
     async def get_chat_list(self):
         async with self.client:
             dialogs = self.client.iter_dialogs()
             dialog_titles = [x.title async for x in dialogs]
+            await self.client.disconnect()
         return dialog_titles
-
-
-
-'''
-@client.on(NewMessage)
-async def handle_new_message(event):
-    global is_started
-    with open('log.txt', 'a') as f:
-        f.write(str(event.message.message)+"   "+str(event.message.date) + '  ' + str(event.message)+'\n')
-        print('1')
-    if target_message in event.message.message:
-        print("Целевое сообщение получено. Завершение скрипта.")
-        await client.disconnect()  # Отключение клиента
-        is_started = False
-'''
-
-
-async def reader(phone):
-    read_client = TelegramClient(phone, api_id, api_hash)
-    async with read_client:
-        @read_client.on(NewMessage)
-        async def handle_new_message(event):
-            with open('log.txt', 'a') as f:
-                f.write(f"{event.message.message} | {event.message.date}\n")
-                print('1')
-            if target_message in event.message.message:
-                print("Целевое сообщение получено. Завершение скрипта.")
-                await read_client.disconnect()
-        await read_client.run_until_disconnected()
-
-'''
-# Запуск клиента
-@app.route('/users/<user_name>')
-async def user_page(user_name):
-    global is_started
-    a = request.args.get("action")
-    match a:
-        case 'ON':
-            asyncio.create_task(starter())
-            is_started = True
-        case 'OFF':
-            client.disconnect()
-            is_started = False
-
-    print(a)
-    return await render_template('user_info.html', user_name=user_name, is_active=is_started)
-
-'''
 
 
 @app.route('/phone', methods=['GET', 'POST'])
@@ -139,14 +90,18 @@ async def code():
 async def main_page():
     phone = request.args.get('phone')
     action = request.args.get('action')
-    client = MyClient(phone)
-    chats = await client.get_chat_list()
+    if phone in MyClient.clients_list.keys():
+        client = MyClient.clients_list[phone]
+    else:
+        client = MyClient(phone)
+        print('NEW')
+    '''chats = await client.get_chat_list()'''
+    chats=['123', '321']
     if action == "ON":
         asyncio.create_task(client.start())
         return await render_template('main.html', phone=phone, status='pass', message='Reader was started', chats=chats)
     if action == "OFF":
-        client = MyClient.clients_list[phone]
-        await client.end()
+        await client.ender()
         return await render_template('main.html', phone=phone, status='pass', message='Reader was ended', chats=chats)
     return await render_template('main.html', phone=phone, status='pass', message='just look at chats', chats=chats)
 
