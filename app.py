@@ -14,19 +14,33 @@ class MyClient:
 
     def __init__(self, phone):
         self.client = TelegramClient(phone, api_id, api_hash)
+        self.reader_task = None
+        self.chat_list = {}
+
         MyClient.clients_list[phone] = self
 
-    async def start(self):
+    async def reader(self):
         async with self.client:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
-                with open('log.txt', 'a') as f:
-                    f.write(f"{event.message.message} | {event.message.date}\n")
+                chat = event.message.peer_id
+                if chat in self.chat_list:
+                    with open('reader.log', 'a', encoding='utf8') as f:
+                        f.write(f"{event.message.text} | {event.message.date} | {chat}\n")
             await self.client.run_until_disconnected()
-            print('END')
+
+            print('end')
+
+    async def start(self):
+        if self.reader_task is None:
+            self.reader_task = asyncio.create_task(self.reader())
+
+        if not self.client.is_connected():
+            await self.client.connect()
 
     async def ender(self):
-        await self.client.disconnect()
+        if self.client.is_connected():
+            await self.client.disconnect()
 
     async def get_chat_list(self):
         async with self.client:
