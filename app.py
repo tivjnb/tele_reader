@@ -8,6 +8,8 @@ app = Quart(__name__)
 api_id = 25517210
 api_hash = "1c349f3c3a54c464dabef9f2738e837a"
 
+target_message = "It's time to STOP!"
+
 
 class MyClient:
     clients_list = dict()
@@ -21,7 +23,8 @@ class MyClient:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
                 with open('log.txt', 'a') as f:
-                    f.write(f"{event.message.message} | {event.message.date}\n")
+                    f.write(str(event.message.message) + "   " + str(event.message.date) + '  ' + str(event.message) + '\n')
+                    print('1')
             await self.client.run_until_disconnected()
 
     async def end(self):
@@ -32,6 +35,54 @@ class MyClient:
             dialogs = self.client.iter_dialogs()
             dialog_titles = [x.title async for x in dialogs]
         return dialog_titles
+
+
+
+'''
+@client.on(NewMessage)
+async def handle_new_message(event):
+    global is_started
+    with open('log.txt', 'a') as f:
+        f.write(str(event.message.message)+"   "+str(event.message.date) + '  ' + str(event.message)+'\n')
+        print('1')
+    if target_message in event.message.message:
+        print("Целевое сообщение получено. Завершение скрипта.")
+        await client.disconnect()  # Отключение клиента
+        is_started = False
+'''
+
+
+async def reader(phone):
+    read_client = TelegramClient(phone, api_id, api_hash)
+    async with read_client:
+        @read_client.on(NewMessage)
+        async def handle_new_message(event):
+            with open('log.txt', 'a') as f:
+                f.write(f"{event.message.message} | {event.message.date}\n")
+                print('1')
+            if target_message in event.message.message:
+                print("Целевое сообщение получено. Завершение скрипта.")
+                await read_client.disconnect()
+        await read_client.run_until_disconnected()
+
+'''
+# Запуск клиента
+@app.route('/users/<user_name>')
+async def user_page(user_name):
+    global is_started
+    a = request.args.get("action")
+    match a:
+        case 'ON':
+            asyncio.create_task(starter())
+            is_started = True
+        case 'OFF':
+            client.disconnect()
+            is_started = False
+
+    print(a)
+    return await render_template('user_info.html', user_name=user_name, is_active=is_started)
+
+'''
 
 
 @app.route('/phone', methods=['GET', 'POST'])
@@ -51,6 +102,7 @@ async def get_phone():
         else:
             send_code = await s_client.send_code_request(phone=phone)
             p_c_h = send_code.phone_code_hash
+            print(p_c_h)
 
             target_url = url_for('code', phone=phone, code_hash=p_c_h)
             await s_client.disconnect()
@@ -64,6 +116,7 @@ async def code():
     if request.method == 'GET':
         phone = request.args.get('phone')
         code_hash = request.args.get('code_hash')
+        print(code_hash)
         return await render_template('get_code.html', phone=phone, code_hash=code_hash)
 
     if request.method == 'POST':
@@ -71,6 +124,7 @@ async def code():
         pass_code = form.get('code')
         phone = form.get('phone')
         code_hash = form.get('code_hash')
+        print(code_hash,phone,code)
 
         client_code_func = TelegramClient(phone, api_id, api_hash)
         await client_code_func.connect()
@@ -96,6 +150,11 @@ async def main_page():
         return await render_template('main.html', phone=phone, status='pass', message='Reader was ended', chats=chats)
     return await render_template('main.html', phone=phone, status='pass', message='just look at chats', chats=chats)
 
+
+@app.route('/stop')
+async def stop():
+
+    return "task stoped"
 
 if __name__ == "__main__":
     app.run(debug=False)
