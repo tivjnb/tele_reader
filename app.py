@@ -24,8 +24,14 @@ class MyClient:
                     f.write(f"{event.message.message} | {event.message.date}\n")
             await self.client.run_until_disconnected()
 
-    async def ender(self):
+    async def end(self):
         await self.client.disconnect()
+
+    async def get_chat_list(self):
+        async with self.client:
+            dialogs = self.client.iter_dialogs()
+            dialog_titles = [x.title async for x in dialogs]
+        return dialog_titles
 
 
 @app.route('/phone', methods=['GET', 'POST'])
@@ -35,11 +41,11 @@ async def get_phone():
     if request.method == 'POST':
         form = await request.form
         phone = form.get('phone_number')
-
+        phone = phone.replace('+','')
         s_client = TelegramClient(phone, api_id, api_hash)
         await s_client.connect()
         if await s_client.is_user_authorized():
-            target_url = url_for('main_page', phone=str(phone), action="ON")
+            target_url = url_for('main_page', phone=phone)
             await s_client.disconnect()
             return redirect(target_url)
         else:
@@ -70,7 +76,7 @@ async def code():
         await client_code_func.connect()
         await client_code_func.sign_in(phone=phone, phone_code_hash=code_hash, code=pass_code)
 
-        target_url = url_for('main_page', phone=phone, action="ON")
+        target_url = url_for('main_page', phone=phone)
         await client_code_func.disconnect()
         return redirect(target_url)
 
@@ -79,15 +85,16 @@ async def code():
 async def main_page():
     phone = request.args.get('phone')
     action = request.args.get('action')
+    client = MyClient(phone)
+    chats = await client.get_chat_list()
     if action == "ON":
-        new_client = MyClient(phone)
-        asyncio.create_task(new_client.start())
-        return "listening was started"
+        asyncio.create_task(client.start())
+        return await render_template('main.html', phone=phone, status='pass', message='Reader was started', chats=chats)
     if action == "OFF":
         client = MyClient.clients_list[phone]
-        await client.ender()
-        return "stop"
-    return f"phone: {phone}"
+        await client.end()
+        return await render_template('main.html', phone=phone, status='pass', message='Reader was ended', chats=chats)
+    return await render_template('main.html', phone=phone, status='pass', message='just look at chats', chats=chats)
 
 
 if __name__ == "__main__":
