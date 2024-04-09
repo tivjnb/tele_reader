@@ -9,9 +9,11 @@
     <h2>Вы авторизованы</h2>
     <h2>{{status}}</h2>
     <h2>Message: {{message}}</h2>
-    <h2>Включить / выключить запись</h2>
-    <a href="/main?phone={{phone}}&action=ON">ON</a>
-    <a href="/main?phone={{phone}}&action=OFF">OFF</a>
+    <h2>
+        <a href="/main?phone={{phone}}&action=ON">Включить</a> /
+        <a href="/main?phone={{phone}}&action=OFF">Выключить</a>
+        запись
+    </h2>
     <h2>Выберите чаты, из которых необходимо сохранять сообщения</h2>
     {% for chat in chats %}
     <h3>{{chat}}</h3>
