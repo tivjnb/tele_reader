@@ -13,20 +13,40 @@ class MyClient:
     clients_list = dict()
 
     def __init__(self, phone):
+        self.phone = phone
         self.client = TelegramClient(phone, api_id, api_hash)
+        self.phone_code_hash = None
         self.reader_task = None
         self.chat_list = {}
-
         MyClient.clients_list[phone] = self
+        print("New client was initialized")
+
+    async def is_authorized(self):
+        if not self.client.is_connected():
+            await self.client.connect()
+        if await self.client.is_user_authorized():
+            return True
+        else:
+            return False
+
+    async def send_code(self):
+        if not self.client.is_connected():
+            await self.client.connect()
+        send_code = await self.client.send_code_request(phone=self.phone)
+        self.phone_code_hash = send_code.phone_code_hash
+
+    async def sing_in(self, code):
+        if not self.client.is_connected():
+            await self.client.connect()
+        await self.client.sign_in(phone=self.phone, phone_code_hash=self.phone_code_hash, code=code)
 
     async def reader(self):
         async with self.client:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
-                chat = event.message.peer_id
-                if chat in self.chat_list:
-                    with open('reader.log', 'a', encoding='utf8') as f:
-                        f.write(f"{event.message.text} | {event.message.date} | {chat}\n")
+                # chat = event.message.peer_id
+                with open('reader.log', 'a', encoding='utf8') as f:
+                    f.write(f"{event.message.text} | {event.message.date}\n")
             await self.client.run_until_disconnected()
 
             print('end')
@@ -34,7 +54,6 @@ class MyClient:
     async def start(self):
         if self.reader_task is None:
             self.reader_task = asyncio.create_task(self.reader())
-
         if not self.client.is_connected():
             await self.client.connect()
 
@@ -50,53 +69,49 @@ class MyClient:
         return dialog_titles
 
 
-@app.route('/phone', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 async def get_phone():
     if request.method == 'GET':
         return await render_template('phone_request.html')
+
     if request.method == 'POST':
         form = await request.form
         phone = form.get('phone_number')
-        phone = phone.replace('+','')
-        s_client = TelegramClient(phone, api_id, api_hash)
-        await s_client.connect()
-        if await s_client.is_user_authorized():
+        phone = phone.replace('+', '')  # временная мера нужная из-за того, что + странно передается
+
+        if phone not in MyClient.clients_list.keys():
+            MyClient(phone)
+        client: MyClient = MyClient.clients_list[phone]
+
+        if await client.is_authorized():
             target_url = url_for('main_page', phone=phone)
-            await s_client.disconnect()
             return redirect(target_url)
         else:
-            send_code = await s_client.send_code_request(phone=phone)
-            p_c_h = send_code.phone_code_hash
-            print(p_c_h)
-
-            target_url = url_for('code', phone=phone, code_hash=p_c_h)
-            await s_client.disconnect()
+            await client.send_code()
+            target_url = url_for('get_code', phone=phone)
             return redirect(target_url)
     return "Unsupported method"
 
 
 @app.route('/code', methods=['GET', 'POST'])
-async def code():
+async def get_code():
 
     if request.method == 'GET':
         phone = request.args.get('phone')
-        code_hash = request.args.get('code_hash')
-        print(code_hash)
-        return await render_template('get_code.html', phone=phone, code_hash=code_hash)
+        return await render_template('get_code.html', phone=phone)
 
     if request.method == 'POST':
         form = await request.form
         pass_code = form.get('code')
         phone = form.get('phone')
-        code_hash = form.get('code_hash')
-        print(code_hash,phone,code)
+        if phone in MyClient.clients_list.keys():
+            client: MyClient = MyClient.clients_list[phone]
+        else:
+            return "Что то с номером"
 
-        client_code_func = TelegramClient(phone, api_id, api_hash)
-        await client_code_func.connect()
-        await client_code_func.sign_in(phone=phone, phone_code_hash=code_hash, code=pass_code)
+        await client.sing_in(pass_code)
 
         target_url = url_for('main_page', phone=phone)
-        await client_code_func.disconnect()
         return redirect(target_url)
 
 
@@ -107,8 +122,7 @@ async def main_page():
     if phone in MyClient.clients_list.keys():
         client = MyClient.clients_list[phone]
     else:
-        client = MyClient(phone)
-        print('NEW')
+        return "Что то с телефоном"
     chats = await client.get_chat_list()
     if action == "ON":
         asyncio.create_task(client.start())
