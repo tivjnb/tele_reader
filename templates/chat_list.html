@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat list</title>
+    <style>
+        .item-container {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ваш телефон: {{phone}}</h1>
+    <h2>Вы авторизованы</h2>
+    <h2>{{status}}</h2>
+    <h2>Message: {{message}}</h2>
+    <h2>
+        <a href="/main?phone={{phone}}&action=ON">Включить</a> /
+        <a href="/main?phone={{phone}}&action=OFF">Выключить</a>
+        запись
+    </h2>
+    <h2>Выберите чаты, из которых необходимо сохранять сообщения</h2>
+    <form id="myForm" method="POST" action="/main?phone={{phone}}">
+        <button type="submit">Отправить</button>
+
+        <!-- Поля формы -->
+        {% for item, value in chats.items() %}
+            <div class="item-container">
+                <label for="{{ item }}">{{ item }}</label>
+                <input type="checkbox" id="{{ item }}" name="{{ item }}" {% if value %}checked{% endif %}>
+            </div>
+        {% endfor %}
+    </form>
+</body>
+</html>

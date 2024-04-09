@@ -1,5 +1,6 @@
 from telethon import TelegramClient
 import asyncio
+from telethon.tl.types import User, Channel, Chat
 
 
 async def main():
@@ -14,9 +15,12 @@ async def main():
             chat_id = dialog.id
             chat_title = dialog.title
             chat_type = dialog.entity.__class__.__name__
-            print("Chat ID:", chat_id)
-            print("Chat Title:", chat_title)
-            print("Chat Type:", chat_type)
+            if chat_type == 'User':
+                print(dialog)
+                print(dialog.name)
+                print("Chat ID:", chat_id)
+                print("Chat Title:", chat_title)
+                print("Chat Type:", chat_type)
 
 if __name__ == '__main__':
     asyncio.run(main())

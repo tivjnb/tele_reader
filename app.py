@@ -1,5 +1,6 @@
 from telethon import TelegramClient
 from telethon.events import NewMessage
+from telethon.tl.types import Chat, User
 from quart import Quart, render_template, request, redirect, url_for
 import asyncio
 
@@ -47,12 +48,23 @@ class MyClient:
         async with self.client:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
-                chat = event.chat.title
-
-                with open('reader.log', 'a', encoding='utf8') as f:
-                    f.write(f"{event.message.text} | "
-                            f"{event.message.date} | "
-                            f"{chat}\n")
+                chat = await event.get_chat()
+                if isinstance(chat, User):
+                    chat_title = ''
+                    first_name = chat.first_name
+                    last_name = chat.last_name
+                    if (first_name is not None) and  (last_name is not None):
+                        chat_title = f"{first_name} {last_name}"
+                    else:
+                        chat_title += first_name if first_name is not None else ''
+                        chat_title += last_name if last_name is not None else ''
+                else:
+                    chat_title = chat.title
+                if chat_title in self.chat_list.keys() and self.chat_list[chat_title]:
+                    with open('reader.log', 'a', encoding='utf8') as f:
+                        f.write(f"{event.message.text} | "
+                                f"{event.message.date} | "
+                                f"{chat_title}\n")
             await self.client.run_until_disconnected()
 
             print('end')
@@ -70,8 +82,15 @@ class MyClient:
     async def get_chat_list(self):
         async with self.client:
             dialogs = self.client.iter_dialogs()
-            chat_list = [dialog.title async for dialog in dialogs]
-            return chat_list
+            async for dialog in dialogs:
+                title = dialog.title
+                if title not in self.chat_list.keys():
+                    self.chat_list[title] = False
+            return self.chat_list
+
+    async def switch_chats(self, turn_on_list):
+        for title in self.chat_list.keys():
+            self.chat_list[title] = title in turn_on_list
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -120,20 +139,25 @@ async def get_code():
         return redirect(target_url)
 
 
-@app.route('/main')
+@app.route('/main', methods=['GET', 'POST'])
 async def main_page():
     phone = request.args.get('phone')
     action = request.args.get('action')
     if phone in MyClient.clients_list.keys():
-        client = MyClient.clients_list[phone]
+        client: MyClient = MyClient.clients_list[phone]
     else:
         return "Что то с телефоном"
 
+    if request.method == 'POST':
+        form = await request.form
+        turn_on_list = [x[0] for x in form.items()]
+        print(turn_on_list)
+        await client.switch_chats(turn_on_list)
     chat_titles: dict = await client.get_chat_list()
     if action == "ON":
         asyncio.create_task(client.start())
         return await render_template(
-            'main.html',
+            'chat_list.html',
             phone=phone,
             status='pass',
             message='Reader was started',
@@ -142,13 +166,13 @@ async def main_page():
     if action == "OFF":
         await client.ender()
         return await render_template(
-            'main.html',
+            'chat_list.html',
             phone=phone, status='pass',
             message='Reader was ended',
             chats=chat_titles
         )
     return await render_template(
-        'main.html',
+        'chat_list.html',
         phone=phone,
         status='pass',
         message='just look at chats',
