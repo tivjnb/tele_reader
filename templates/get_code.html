@@ -8,7 +8,6 @@
     <h1>Введите код высланный на номер {{phone}}!</h1>
     <form action="/code" method="post">
         <input type="text" name="code" placeholder="Введите код" required>
-        <input type="text" name="code_hash" hidden="hidden" value="{{code_hash}}">
         <input type="text" name="phone" hidden="hidden" value="{{phone}}">
         <button type="submit">Отправить</button>
     </form>
