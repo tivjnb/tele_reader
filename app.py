@@ -69,10 +69,11 @@ class MyClient:
         return dialog_titles
 
 
-@app.route('/phone', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 async def get_phone():
     if request.method == 'GET':
         return await render_template('phone_request.html')
+
     if request.method == 'POST':
         form = await request.form
         phone = form.get('phone_number')
