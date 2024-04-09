@@ -15,9 +15,12 @@ class MyClient:
     def __init__(self, phone):
         self.phone = phone
         self.client = TelegramClient(phone, api_id, api_hash)
+
         self.phone_code_hash = None
         self.reader_task = None
-        self.chat_list = {}
+
+        self.chat_list = dict()
+
         MyClient.clients_list[phone] = self
         print("New client was initialized")
 
@@ -40,18 +43,21 @@ class MyClient:
             await self.client.connect()
         await self.client.sign_in(phone=self.phone, phone_code_hash=self.phone_code_hash, code=code)
 
-    async def reader(self):
+    async def reader(self):  # надо наверное чаты по id смотреть, а не названию, но это потом
         async with self.client:
             @self.client.on(NewMessage)
             async def handle_new_message(event):
-                # chat = event.message.peer_id
+                chat = event.chat.title
+
                 with open('reader.log', 'a', encoding='utf8') as f:
-                    f.write(f"{event.message.text} | {event.message.date}\n")
+                    f.write(f"{event.message.text} | "
+                            f"{event.message.date} | "
+                            f"{chat}\n")
             await self.client.run_until_disconnected()
 
             print('end')
 
-    async def start(self):
+    async def start(self):  # Можно будет добавить st_time, чтобы отсеивать сообщения после выключения
         if self.reader_task is None:
             self.reader_task = asyncio.create_task(self.reader())
         if not self.client.is_connected():
@@ -64,9 +70,8 @@ class MyClient:
     async def get_chat_list(self):
         async with self.client:
             dialogs = self.client.iter_dialogs()
-            dialog_titles = [x.title async for x in dialogs]
-            await self.client.disconnect()
-        return dialog_titles
+            chat_list = [dialog.title async for dialog in dialogs]
+            return chat_list
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -123,14 +128,32 @@ async def main_page():
         client = MyClient.clients_list[phone]
     else:
         return "Что то с телефоном"
-    chats = await client.get_chat_list()
+
+    chat_titles: dict = await client.get_chat_list()
     if action == "ON":
         asyncio.create_task(client.start())
-        return await render_template('main.html', phone=phone, status='pass', message='Reader was started', chats=chats)
+        return await render_template(
+            'main.html',
+            phone=phone,
+            status='pass',
+            message='Reader was started',
+            chats=chat_titles
+        )
     if action == "OFF":
         await client.ender()
-        return await render_template('main.html', phone=phone, status='pass', message='Reader was ended', chats=chats)
-    return await render_template('main.html', phone=phone, status='pass', message='just look at chats', chats=chats)
+        return await render_template(
+            'main.html',
+            phone=phone, status='pass',
+            message='Reader was ended',
+            chats=chat_titles
+        )
+    return await render_template(
+        'main.html',
+        phone=phone,
+        status='pass',
+        message='just look at chats',
+        chats=chat_titles
+    )
 
 
 if __name__ == "__main__":
