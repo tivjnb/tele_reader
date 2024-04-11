@@ -10,18 +10,45 @@
             padding: 10px;
             margin-bottom: 10px;
         }
+        .form-group {
+        margin-bottom: 10px; /* Отступ между строками */
+        }
     </style>
 </head>
 <body>
     <h1>Ваш телефон: {{phone}}</h1>
+    <hr>
     <h2>Вы авторизованы</h2>
     <h2>{{status}}</h2>
     <h2>Message: {{message}}</h2>
+    <hr>
+    <h2>Подключите базу данных</h2>
+    <form id="data_base" method="POST" action="/main?phone={{phone}}&action=connect_db">
+        <div class="form-group">
+            <select name="db_type">
+                <option value="pgsql">PostGR SQL</option>
+                <option value="mssql">Microsoft SQL</option>
+                <option value="mysql">My Sql</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <input type="text" name="host" placeholder="Хост" value="localhost" required>
+            <input type="text" name="port" placeholder="Порт" value="5432" required>
+            <input type="text" name="user" placeholder="Пользователь" value="user2" required>
+            <input type="text" name="password" placeholder="Пароль" value="123" required>
+            <input type="text" name="database" placeholder="Имя базы данных" value="telereader_pg" required>
+        </div>
+        <div class="form-group">
+            <button type="submit">Подключить</button>
+        </div>
+    </form>
+    <hr>
     <h2>
         <a href="/main?phone={{phone}}&action=ON">Включить</a> /
         <a href="/main?phone={{phone}}&action=OFF">Выключить</a>
         запись
     </h2>
+    <hr>
     <h2>Выберите чаты, из которых необходимо сохранять сообщения</h2>
     <form id="myForm" method="POST" action="/main?phone={{phone}}">
         <button type="submit">Отправить</button>

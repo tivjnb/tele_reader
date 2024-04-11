@@ -3,6 +3,8 @@ from telethon.events import NewMessage
 from telethon.tl.types import User
 from quart import Quart, render_template, request, redirect, url_for
 import asyncio
+import asyncpg
+import aiomysql
 
 app = Quart(__name__)
 
@@ -21,6 +23,9 @@ class MyClient:
         self.reader_task = None
 
         self.chat_list = dict()
+        self.db_type = None
+        self.db_connection = None
+        self.db_cursor = None
 
         MyClient.clients_list[phone] = self
         print("New client was initialized")
@@ -44,6 +49,89 @@ class MyClient:
             await self.client.connect()
         await self.client.sign_in(phone=self.phone, phone_code_hash=self.phone_code_hash, code=code)
 
+    async def __pg_connect(self, db_host, db_port, db_user, database, db_password):  # обернуть в собаку
+        try:
+            connection = await asyncpg.connect(
+                user=db_user,
+                password=db_password,
+                database=database,
+                host=db_host,
+                port=db_port
+            )
+            self.db_connection = connection
+            self.db_type = 'pgsql'
+
+            await connection.execute('''
+                CREATE TABLE IF NOT EXISTS messages (
+                    id SERIAL PRIMARY KEY,
+                    data TIMESTAMP NOT NULL,
+                    chat_name TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    message_text TEXT,
+                    parent_message TEXT
+                )
+                ''')
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    async def __mysql_connect(self, db_host, db_port, db_user, database, db_password):
+        try:
+            connection = await aiomysql.connect(
+                host='localhost',
+                port=3306,
+                user='user2',
+                password='1234',
+                db='my_sql_db'
+            )
+            cursor = await connection.cursor()
+            self.db_type = 'mysql'
+            self.db_connection = connection
+            self.db_cursor = cursor
+            await cursor.execute('''
+                            CREATE TABLE IF NOT EXISTS messages (
+                                id SERIAL PRIMARY KEY,
+                                data DATETIME NOT NULL,
+                                chat_name TEXT NOT NULL,
+                                user_name TEXT NOT NULL,
+                                message_text TEXT,
+                                parent_message TEXT
+                            )
+                            ''')
+            await connection.commit()
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    async def db_connector(self, db_type, db_host, db_port, db_user, database, db_password):
+        if self.db_connection is not None:
+            try:
+                await self.db_connection.close()
+            except Exception as e:
+                print(e)
+        if db_type == 'pgsql':
+            await self.__pg_connect(db_host, db_port, db_user, database, db_password)
+        elif db_type == 'mssql':
+            pass
+        elif db_type == 'mysql':
+            await self.__mysql_connect(db_host, db_port, db_user, database, db_password)
+
+    async def write_to_db(self, send_time, chat_name, sender_name, text):
+        if self.db_type == 'pgsql':
+            await self.db_connection.execute(f'''
+            INSERT INTO messages (data, chat_name, user_name, message_text)
+            VALUES ('{send_time}', '{chat_name}', '{sender_name}', '{text}')
+            ''')
+        elif self.db_type == 'mysql':
+            await self.db_cursor.execute(f'''
+            INSERT INTO messages (data, chat_name, user_name, message_text)
+            VALUES ('{send_time}', '{chat_name}', '{sender_name}', '{text}')
+            ''')
+            await self.db_connection.commit()
+
+
     async def reader(self):  # надо наверное чаты по id смотреть, а не названию, но это потом
         async with self.client:
             @self.client.on(NewMessage)
@@ -61,7 +149,14 @@ class MyClient:
                 else:
                     chat_title = chat.title
 
+                print(chat_title)
                 if chat_title in self.chat_list.keys() and self.chat_list[chat_title]:
+                    await self.write_to_db(
+                        send_time=event.message.date,
+                        chat_name=chat_title,
+                        sender_name='pass',
+                        text=event.message.text
+                    )
                     with open('reader.log', 'a', encoding='utf8') as f:
                         f.write(f"{event.message.text} | "
                                 f"{event.message.date} | "
@@ -152,9 +247,19 @@ async def main_page():
 
     if request.method == 'POST':
         form = await request.form
-        turn_on_list = [x[0] for x in form.items()]
-        print(turn_on_list)
-        await client.switch_chats(turn_on_list)
+        if action == "connect_db":
+            res = await client.db_connector(
+                db_type=form.get('db_type'),
+                db_host=form.get('host'),
+                db_port=form.get('port'),
+                db_user=form.get('user'),
+                db_password=form.get('password'),
+                database=form.get('database')
+            )
+        else:
+            turn_on_list = [x[0] for x in form.items()]
+            print(turn_on_list)
+            await client.switch_chats(turn_on_list)
     chat_titles: dict = await client.get_chat_list()
     if action == "ON":
         asyncio.create_task(client.start())
