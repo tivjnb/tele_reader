@@ -1,4 +1,5 @@
 from telethon import TelegramClient
+from telethon.events import NewMessage
 import asyncio
 from telethon.tl.types import User, Channel, Chat
 
@@ -9,18 +10,29 @@ async def main():
 
     client = TelegramClient('79268403751', api_id, api_hash)
     async with client:
-        dialogs = client.iter_dialogs()
+        @client.on(NewMessage)
+        async def new_message(event):
+            message = event.message
+            # Получаем информацию о сообщении
+            sender = await message.get_sender()
+            chat = await message.get_chat()
+            date = message.date
+            text = message.text
 
-        async for dialog in dialogs:
-            chat_id = dialog.id
-            chat_title = dialog.title
-            chat_type = dialog.entity.__class__.__name__
-            if chat_type == 'User':
-                print(dialog)
-                print(dialog.name)
-                print("Chat ID:", chat_id)
-                print("Chat Title:", chat_title)
-                print("Chat Type:", chat_type)
+            # Проверяем, является ли сообщение ответом на другое сообщение
+            reply_msg = None
+            if message.reply_to_msg_id:
+                reply_msg = await client.get_messages(chat, ids=message.reply_to_msg_id)
+
+            # Выводим информацию о сообщении
+            print("Дата:", date)
+            print("Отправитель:", sender)
+            print("Чат:", chat)
+            print("Текст сообщения:", text)
+            if reply_msg:
+                print("Это ответ на сообщение:", reply_msg.text)
+            print("-----------------------------")
+        await client.run_until_disconnected()
 
 if __name__ == '__main__':
     asyncio.run(main())

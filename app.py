@@ -1,9 +1,9 @@
 from telethon import TelegramClient
 from telethon.events import NewMessage
-from telethon.tl.types import User
+from telethon.tl.types import User, Channel, Chat
 from quart import Quart, render_template, request, redirect, url_for
 import asyncio
-from sqlalchemy import create_engine, text, Table, Column, Integer, String, DateTime, MetaData, insert
+from sqlalchemy import create_engine, text, Table, Column, Integer, String, DateTime, MetaData, insert, BigInteger
 
 app = Quart(__name__)
 
@@ -16,10 +16,15 @@ messages_table = Table(
     metadata_obj,
     Column('id', Integer, primary_key=True),
     Column('data_time', DateTime, nullable=False),
-    Column('chat_name', String(100), nullable=False),
-    Column('sender_name', String(100), nullable=False),
+    Column('chat_type', String(10), nullable=False),
+    Column('chat_id', BigInteger, nullable=False),
+    Column('chat_name', String(150), nullable=False),
+    Column('message_id', BigInteger, nullable=False),
     Column('message_text', String(1000), nullable=False),
-    Column('Parent', String(100))
+    Column('sender_type', String(10), nullable=False),
+    Column('sender_name', String(150), nullable=False),
+    Column('sender_id', BigInteger, nullable=False),
+    Column('replied_to', BigInteger)
 )
 
 
@@ -91,63 +96,95 @@ class MyClient:
             conn.execute(stmt)
             conn.commit()
 
-    def write_to_db(self, send_time, chat_name, sender_name, message_text):
+    def write_to_db(self, data_time, chat_type, chat_id, chat_name, message_id, message_text, sender_type, sender_name,
+                    sender_id, replied_to):
 
         data_to_insert = {
-            "data_time": f"{send_time}",
+            "data_time": f"{data_time}",
+            "chat_type": f"{chat_type}",
+            "chat_id": f"{chat_id}",
             "chat_name": f"{chat_name}",
+            "message_id": f"{message_id}",
+            "message_text": f"{message_text}",
+            "sender_type": f"{sender_type}",
             "sender_name": f"{sender_name}",
-            "message_text": f"{message_text}"
+            "sender_id": f"{sender_id}"
         }
-
+        if replied_to is not None:
+            data_to_insert["replied_to"] = replied_to
         for db in self.databases.values():
             if db is not None:
                 self.__writer(db, data_to_insert)
 
+    async def __first_last_to_name(self, first_name, last_name):
+        name=''
+        if first_name is not None and last_name is not None:
+            name = f"{first_name} {last_name}"
+        elif first_name is not None:
+            name = first_name
+        elif last_name is not None:
+            name = last_name
+        else:
+            raise Exception("Empty name")
+        return name
+
     async def reader(self):  # надо наверное чаты по id смотреть, а не названию, но это потом
         async with self.client:
             @self.client.on(NewMessage)
-            async def handle_new_message(event):
+            async def new_message_reader(event):
                 chat = await event.get_chat()
+                chat_title = ''
+                chat_type = ''
                 if isinstance(chat, User):
-                    chat_title = ''
-                    first_name = chat.first_name
-                    last_name = chat.last_name
-                    if (first_name is not None) and (last_name is not None):
-                        chat_title = f"{first_name} {last_name}"
-                    else:
-                        chat_title += first_name if first_name is not None else ''
-                        chat_title += last_name if last_name is not None else ''
-                else:
+                    chat_title = await self.__first_last_to_name(chat.first_name, chat.last_name)
+                    chat_type = 'User'
+                elif isinstance(chat, Chat):
                     chat_title = chat.title
-
+                    chat_type = 'Chat'
+                elif isinstance(chat, Channel):
+                    chat_title = chat.title
+                    chat_type = 'Channel'
+                chat_id = chat.id
+                print(chat_title)
                 if chat_title in self.chat_list.keys() and self.chat_list[chat_title]:
+                    message_id = event.message.id
                     sender = await event.get_sender()
-                    sender_title = ''
-                    if hasattr(sender, 'title'):
-                        sender_title = sender.title
-                    elif hasattr(sender, 'username') and sender.username is not None:
-                        sender_title = sender.username
+                    if isinstance(sender, User):
+                        sender_name = await self.__first_last_to_name(sender.first_name, sender.last_name)
+                        sender_type = 'User'
+                    elif isinstance(sender, Channel):
+                        sender_name = sender.title
+                        sender_type = 'Channel'
                     else:
-                        sender_first_name = chat.first_name
-                        sender_last_name = chat.last_name
-                        if (sender_first_name is not None) and (sender_last_name is not None):
-                            sender_title = f"{sender_first_name} {sender_last_name}"
-                        else:
-                            sender_title += sender_first_name if sender_first_name is not None else ''
-                            sender_title += sender_last_name if sender_last_name is not None else ''
+                        raise Exception(sender)
+                    sender_id = sender.id
 
                     self.write_to_db(
-                        send_time=event.message.date,
+                        data_time=event.message.date,
+                        chat_type=chat_type,
+                        chat_id=chat_id,
                         chat_name=chat_title,
-                        sender_name=sender_title,
-                        message_text=event.message.text
+                        message_id=message_id,
+                        message_text=event.message.text,
+                        sender_type=sender_type,
+                        sender_name=sender_name,
+                        sender_id=sender_id,
+                        replied_to=event.message.reply_to_msg_id
                     )
                     with open('reader.log', 'a', encoding='utf8') as f:
-                        f.write(f"{event.message.text} | "
-                                f"{event.message.date} | "
-                                f"{sender_title} |"
-                                f"{chat_title}\n")
+                        f.write(
+                            f"_______________________________________\n"
+                            f"Дата: {event.message.date}\n"
+                            f"Тип чата: {chat_type}\n"
+                            f"ID чата: {chat_id}\n"
+                            f"Название чата: {chat_title}\n"
+                            f"ID сообщения: {message_id}\n"
+                            f"Текст сообщения: {event.message.text}\n"
+                            f"Тип отправителя: {sender_type}\n"
+                            f"ID отправителя: {sender_id}\n"
+                            f"Имя отправителя: {sender_name}\n"
+                            f"Ответ на: {event.message.reply_to_msg_id}\n"
+                            )
 
             await self.client.run_until_disconnected()
 
@@ -249,7 +286,7 @@ async def main_page():
                 db_type = 'pgsql'
                 message = "PosqtgreSQL подключен"
             elif action == "connect_mysql":
-                db_type='mysql'
+                db_type = 'mysql'
                 message = "MySQL подключен"
             await client.db_connector(
                 db_type=db_type,
