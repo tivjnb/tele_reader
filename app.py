@@ -121,18 +121,34 @@ class MyClient:
                 else:
                     chat_title = chat.title
 
-                print(chat_title)
                 if chat_title in self.chat_list.keys() and self.chat_list[chat_title]:
+                    sender = await event.get_sender()
+                    sender_title = ''
+                    if hasattr(sender, 'title'):
+                        sender_title = sender.title
+                    elif hasattr(sender, 'username') and sender.username is not None:
+                        sender_title = sender.username
+                    else:
+                        sender_first_name = chat.first_name
+                        sender_last_name = chat.last_name
+                        if (sender_first_name is not None) and (sender_last_name is not None):
+                            sender_title = f"{sender_first_name} {sender_last_name}"
+                        else:
+                            sender_title += sender_first_name if sender_first_name is not None else ''
+                            sender_title += sender_last_name if sender_last_name is not None else ''
+
                     self.write_to_db(
                         send_time=event.message.date,
                         chat_name=chat_title,
-                        sender_name='pass',
+                        sender_name=sender_title,
                         message_text=event.message.text
                     )
                     with open('reader.log', 'a', encoding='utf8') as f:
                         f.write(f"{event.message.text} | "
                                 f"{event.message.date} | "
+                                f"{sender_title} |"
                                 f"{chat_title}\n")
+
             await self.client.run_until_disconnected()
 
             print('end')
@@ -144,11 +160,8 @@ class MyClient:
             await self.client.connect()
 
     async def ender(self):
-        print(1)
         if self.client.is_connected():
-            print(2)
             await self.client.disconnect()
-            print(3)
 
     async def get_chat_list(self):
         if not self.client.is_connected():
@@ -171,6 +184,7 @@ class MyClient:
             Записывается: {self.client.is_connected() and self.reader_task is not None}
             '''
         return stratus
+
 
 @app.route('/', methods=['GET', 'POST'])
 async def get_phone():
@@ -256,9 +270,7 @@ async def main_page():
         message = "Начата запись сообщений"
     if action == "OFF":
         await client.ender()
-        print(5)
         message = "Запись сообщений закончена"
-    print(5)
     return await render_template(
         'chat_list.html',
         phone=phone,
