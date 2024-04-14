@@ -1,0 +1,5 @@
+Telethon~=1.34.0
+Quart~=0.19.5
+SQLAlchemy~=2.0.29
+psycopg2~=2.9.9
+mysql-connector-python~=8.3.0

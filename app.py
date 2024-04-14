@@ -96,22 +96,7 @@ class MyClient:
             conn.execute(stmt)
             conn.commit()
 
-    def write_to_db(self, data_time, chat_type, chat_id, chat_name, message_id, message_text, sender_type, sender_name,
-                    sender_id, replied_to):
-
-        data_to_insert = {
-            "data_time": f"{data_time}",
-            "chat_type": f"{chat_type}",
-            "chat_id": f"{chat_id}",
-            "chat_name": f"{chat_name}",
-            "message_id": f"{message_id}",
-            "message_text": f"{message_text}",
-            "sender_type": f"{sender_type}",
-            "sender_name": f"{sender_name}",
-            "sender_id": f"{sender_id}"
-        }
-        if replied_to is not None:
-            data_to_insert["replied_to"] = replied_to
+    def write_to_db(self, data_to_insert):
         for db in self.databases.values():
             if db is not None:
                 self.__writer(db, data_to_insert)
@@ -159,18 +144,21 @@ class MyClient:
                         raise Exception(sender)
                     sender_id = sender.id
 
-                    self.write_to_db(
-                        data_time=event.message.date,
-                        chat_type=chat_type,
-                        chat_id=chat_id,
-                        chat_name=chat_title,
-                        message_id=message_id,
-                        message_text=event.message.text,
-                        sender_type=sender_type,
-                        sender_name=sender_name,
-                        sender_id=sender_id,
-                        replied_to=event.message.reply_to_msg_id
-                    )
+                    data_to_insert = {
+                        "data_time": f"{event.message.date}",
+                        "chat_type": f"{chat_type}",
+                        "chat_id": f"{chat_id}",
+                        "chat_name": f"{chat_title}",
+                        "message_id": f"{message_id}",
+                        "message_text": f"{event.message.text}",
+                        "sender_type": f"{sender_type}",
+                        "sender_name": f"{sender_name}",
+                        "sender_id": f"{sender_id}"
+                    }
+                    replied_to = event.message.reply_to_msg_id
+                    if replied_to is not None:
+                        data_to_insert["replied_to"] = replied_to
+                    self.write_to_db(data_to_insert)
                     with open('reader.log', 'a', encoding='utf8') as f:
                         f.write(
                             f"_______________________________________\n"

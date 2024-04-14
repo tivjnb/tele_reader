@@ -1,3 +1,4 @@
 reader.log
 test
 mysql_test.py
+*.session
