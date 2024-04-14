@@ -18,25 +18,31 @@
 <body>
     <h1>Ваш телефон: {{phone}}</h1>
     <hr>
-    <h2>Вы авторизованы</h2>
     <h2>{{status}}</h2>
     <h2>Message: {{message}}</h2>
     <hr>
     <h2>Подключите базу данных</h2>
-    <form id="data_base" method="POST" action="/main?phone={{phone}}&action=connect_db">
-        <div class="form-group">
-            <select name="db_type">
-                <option value="pgsql">PostGR SQL</option>
-                <option value="mssql">Microsoft SQL</option>
-                <option value="mysql">My Sql</option>
-            </select>
-        </div>
+    <form id="postgresql" method="POST" action="/main?phone={{phone}}&action=connect_pgsql">
+        <h3>PostgreSQL</h3>
         <div class="form-group">
             <input type="text" name="host" placeholder="Хост" value="localhost" required>
             <input type="text" name="port" placeholder="Порт" value="5432" required>
             <input type="text" name="user" placeholder="Пользователь" value="user2" required>
             <input type="text" name="password" placeholder="Пароль" value="123" required>
             <input type="text" name="database" placeholder="Имя базы данных" value="telereader_pg" required>
+        </div>
+        <div class="form-group">
+            <button type="submit">Подключить</button>
+        </div>
+    </form>
+    <form id="data_base" method="POST" action="/main?phone={{phone}}&action=connect_mysql">
+        <h3>MySQL</h3>
+        <div class="form-group">
+            <input type="text" name="host" placeholder="Хост" value="localhost" required>
+            <input type="text" name="port" placeholder="Порт" value="3306" required>
+            <input type="text" name="user" placeholder="Пользователь" value="user2" required>
+            <input type="text" name="password" placeholder="Пароль" value="1234" required>
+            <input type="text" name="database" placeholder="Имя базы данных" value="my_sql_db" required>
         </div>
         <div class="form-group">
             <button type="submit">Подключить</button>
