@@ -25,11 +25,11 @@
     <form id="postgresql" method="POST" action="/main?phone={{phone}}&action=connect_pgsql">
         <h3>PostgreSQL</h3>
         <div class="form-group">
-            <input type="text" name="host" placeholder="Хост" value="localhost" required>
-            <input type="text" name="port" placeholder="Порт" value="5432" required>
-            <input type="text" name="user" placeholder="Пользователь" value="user2" required>
-            <input type="text" name="password" placeholder="Пароль" value="123" required>
-            <input type="text" name="database" placeholder="Имя базы данных" value="telereader_pg" required>
+            <input type="text" name="host" placeholder="Хост" required>
+            <input type="text" name="port" placeholder="Порт" required>
+            <input type="text" name="user" placeholder="Пользователь" required>
+            <input type="text" name="password" placeholder="Пароль" required>
+            <input type="text" name="database" placeholder="Имя базы данных" required>
         </div>
         <div class="form-group">
             <button type="submit">Подключить</button>
@@ -38,11 +38,11 @@
     <form id="data_base" method="POST" action="/main?phone={{phone}}&action=connect_mysql">
         <h3>MySQL</h3>
         <div class="form-group">
-            <input type="text" name="host" placeholder="Хост" value="localhost" required>
-            <input type="text" name="port" placeholder="Порт" value="3306" required>
-            <input type="text" name="user" placeholder="Пользователь" value="user2" required>
-            <input type="text" name="password" placeholder="Пароль" value="1234" required>
-            <input type="text" name="database" placeholder="Имя базы данных" value="my_sql_db" required>
+            <input type="text" name="host" placeholder="Хост" required>
+            <input type="text" name="port" placeholder="Порт" required>
+            <input type="text" name="user" placeholder="Пользователь" required>
+            <input type="text" name="password" placeholder="Пароль" required>
+            <input type="text" name="database" placeholder="Имя базы данных" required>
         </div>
         <div class="form-group">
             <button type="submit">Подключить</button>
